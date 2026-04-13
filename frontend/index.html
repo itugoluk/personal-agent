@@ -543,6 +543,7 @@ async function switchModel(key) {
   document.querySelectorAll('.model-item').forEach(el => {
     el.classList.toggle('active', el.dataset.key === key);
   });
+  clearChat();
 }
 
 // ── History restore ───────────────────────────────────────────────────────────
@@ -774,13 +775,19 @@ async function sendMessage() {
 }
 
 // ── New chat ──────────────────────────────────────────────────────────────────
-newBtn.addEventListener('click', async () => {
-  if (isGenerating) return;
-  await api('POST', '/api/new');
-  // Clear messages but keep empty state hidden toggle
+function clearChat() {
   while (messagesEl.firstChild) messagesEl.removeChild(messagesEl.firstChild);
   messagesEl.appendChild(emptyState);
   emptyState.style.display = '';
+  currentAssistantEl = null;
+  currentBuffer = '';
+  currentToolCard = null;
+}
+
+newBtn.addEventListener('click', async () => {
+  if (isGenerating) return;
+  await api('POST', '/api/new');
+  clearChat();
 });
 
 // ── Input auto-resize + Enter to send ────────────────────────────────────────
