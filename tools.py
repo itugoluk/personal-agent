@@ -134,18 +134,7 @@ def web_search(query: str) -> str:
 
 
 def python_exec(code: str) -> str:
-    try:
-        result = subprocess.run(
-            ["python3", "-c", code],
-            capture_output=True, text=True, timeout=30,
-            cwd=SANDBOX_DIR
-        )
-        out = result.stdout + (("\nSTDERR:\n" + result.stderr) if result.stderr else "")
-        return _cap(out.strip()) or "(no output)"
-    except subprocess.TimeoutExpired:
-        return "Error: timed out after 30 seconds"
-    except Exception as e:
-        return f"Error: {e}"
+    return "python_exec is disabled. Write the code to a .py file in the sandbox and run it with shell_exec instead."
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────
@@ -235,7 +224,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "python_exec",
-            "description": f"Execute Python 3 code. Runs inside the sandbox ({SANDBOX_DIR}).",
+            "description": "DISABLED. Do not use. To run Python code, write it to a .py file in the sandbox using write_file, then run it with shell_exec.",
             "parameters": {
                 "type": "object",
                 "properties": {
