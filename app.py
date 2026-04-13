@@ -19,7 +19,7 @@ if __name__ == "__main__":
     time.sleep(0.8)  # allow server to bind
 
     window = webview.create_window(
-        "Personal Agent",
+        "Olympus",
         f"http://127.0.0.1:{PORT}",
         width=1100,
         height=760,

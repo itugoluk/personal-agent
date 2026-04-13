@@ -21,7 +21,7 @@ def _model_label(key: str) -> str:
 
 def print_welcome(model_key: str):
     console.print(Panel.fit(
-        f"[bold cyan]Personal Agent[/bold cyan]  [dim]model: {_model_label(model_key)}[/dim]\n"
+        f"[bold cyan]Olympus[/bold cyan]  [dim]model: {_model_label(model_key)}[/dim]\n"
         "[dim]Commands: /exit  /new  /tools  /model[/dim]",
         border_style="cyan"
     ))
