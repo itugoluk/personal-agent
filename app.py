@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import threading
 import time
-import sys
+import os
+import signal
 import uvicorn
 import webview
 from server import app as fastapi_app
@@ -11,6 +12,10 @@ PORT = 8765
 
 def start_server():
     uvicorn.run(fastapi_app, host="127.0.0.1", port=PORT, log_level="error")
+
+
+def on_closed():
+    os.kill(os.getpid(), signal.SIGTERM)
 
 
 if __name__ == "__main__":
@@ -27,4 +32,4 @@ if __name__ == "__main__":
         resizable=True,
         text_select=True,
     )
-    webview.start()
+    webview.start(on_closed=on_closed)
