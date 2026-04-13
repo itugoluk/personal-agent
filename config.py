@@ -13,6 +13,11 @@ HISTORY_DIR = os.path.expanduser("~/.olympus")
 HISTORY_FILE = os.path.join(HISTORY_DIR, "history.json")
 MAX_OUTPUT_CHARS = 8000
 
+# Sandbox — the ONLY directory the agent may read from or write to
+SANDBOX_DIR = os.path.realpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "sandbox")
+)
+
 # Available models keyed by shorthand
 MODELS = {
     "groq-llama": {

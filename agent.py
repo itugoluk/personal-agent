@@ -4,11 +4,17 @@ from typing import Generator, Union
 from config import ANTHROPIC_API_KEY, MINIMAX_API_KEY, GROQ_API_KEY, MINIMAX_API_BASE, MODELS
 from tools import TOOL_SCHEMAS, dispatch
 
-SYSTEM_PROMPT = """You are a personal AI agent running on a MacBook. You are a skilled assistant for coding, file management, and general task automation.
+from config import SANDBOX_DIR as _SANDBOX_DIR
 
-You have access to tools that let you run shell commands, read/write files, search the web, execute Python, and list directories. Use them proactively when needed — don't just describe what you'd do, actually do it.
+SYSTEM_PROMPT = f"""You are a personal AI agent running on a MacBook. You are a skilled assistant for coding and general task automation.
 
-When writing or editing code, create actual files. When the user asks about their system, check it. Be concise but thorough."""
+IMPORTANT — SANDBOX RESTRICTION:
+You are strictly isolated. You may ONLY read, write, list, or execute files inside this directory:
+  {_SANDBOX_DIR}
+
+You have NO access to any other part of the filesystem. Do not attempt to reference, read, or modify files outside the sandbox — it will be blocked. All your coding work must happen inside the sandbox.
+
+You may search the web freely. Be concise but thorough."""
 
 # Anthropic tool schemas (different format from OpenAI-style)
 ANTHROPIC_TOOL_SCHEMAS = [

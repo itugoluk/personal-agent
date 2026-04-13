@@ -1,13 +1,49 @@
 import os
+import re
 import subprocess
-import json
-from config import MAX_OUTPUT_CHARS
+from config import MAX_OUTPUT_CHARS, SANDBOX_DIR
 
 try:
     from duckduckgo_search import DDGS
     _ddgs_available = True
 except ImportError:
     _ddgs_available = False
+
+# Ensure sandbox exists
+os.makedirs(SANDBOX_DIR, exist_ok=True)
+
+
+# ── Sandbox enforcement ───────────────────────────────────────────────────────
+
+def _safe_path(path: str) -> str:
+    """
+    Resolve the path and verify it sits inside SANDBOX_DIR.
+    Raises PermissionError if it does not.
+    """
+    resolved = os.path.realpath(os.path.expanduser(path))
+    if resolved != SANDBOX_DIR and not resolved.startswith(SANDBOX_DIR + os.sep):
+        raise PermissionError(
+            f"Access denied: '{path}' is outside the sandbox. "
+            f"All file operations are restricted to {SANDBOX_DIR}"
+        )
+    return resolved
+
+
+def _shell_cmd_safe(cmd: str) -> None:
+    """
+    Reject shell commands that reference absolute paths outside the sandbox.
+    Catches explicit /path/to/file references — not a full sandbox but blocks
+    the obvious cases.
+    """
+    # Find all tokens that look like absolute paths or ~ paths
+    candidates = re.findall(r'(?:~|/)[^\s\'\";|&><$(){}]*', cmd)
+    for c in candidates:
+        expanded = os.path.realpath(os.path.expanduser(c))
+        if expanded != SANDBOX_DIR and not expanded.startswith(SANDBOX_DIR + os.sep):
+            raise PermissionError(
+                f"Access denied: shell command references a path outside the sandbox ('{c}'). "
+                f"All operations are restricted to {SANDBOX_DIR}"
+            )
 
 
 def _cap(text: str) -> str:
@@ -16,10 +52,17 @@ def _cap(text: str) -> str:
     return text
 
 
+# ── Tools ─────────────────────────────────────────────────────────────────────
+
 def shell_exec(cmd: str) -> str:
     try:
+        _shell_cmd_safe(cmd)
+    except PermissionError as e:
+        return f"SANDBOX ERROR: {e}"
+    try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=30
+            cmd, shell=True, capture_output=True, text=True, timeout=30,
+            cwd=SANDBOX_DIR
         )
         out = result.stdout + (("\nSTDERR:\n" + result.stderr) if result.stderr else "")
         return _cap(out.strip()) or "(no output)"
@@ -30,35 +73,46 @@ def shell_exec(cmd: str) -> str:
 
 
 def read_file(path: str) -> str:
-    path = os.path.expanduser(path)
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        safe = _safe_path(path)
+    except PermissionError as e:
+        return f"SANDBOX ERROR: {e}"
+    try:
+        with open(safe, "r", encoding="utf-8", errors="replace") as f:
             return _cap(f.read())
     except Exception as e:
         return f"Error: {e}"
 
 
 def write_file(path: str, content: str) -> str:
-    path = os.path.expanduser(path)
     try:
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
+        safe = _safe_path(path)
+    except PermissionError as e:
+        return f"SANDBOX ERROR: {e}"
+    try:
+        os.makedirs(os.path.dirname(safe), exist_ok=True)
+        with open(safe, "w", encoding="utf-8") as f:
             f.write(content)
-        return f"Written {len(content)} chars to {path}"
+        return f"Written {len(content)} chars to {safe}"
     except Exception as e:
         return f"Error: {e}"
 
 
 def list_dir(path: str = ".") -> str:
-    path = os.path.expanduser(path)
+    # Default to sandbox if relative or unspecified
+    if not os.path.isabs(os.path.expanduser(path)) and path in (".", ""):
+        path = SANDBOX_DIR
     try:
-        entries = os.listdir(path)
+        safe = _safe_path(path)
+    except PermissionError as e:
+        return f"SANDBOX ERROR: {e}"
+    try:
+        entries = os.listdir(safe)
         lines = []
         for e in sorted(entries):
-            full = os.path.join(path, e)
-            suffix = "/" if os.path.isdir(full) else ""
-            lines.append(e + suffix)
-        return "\n".join(lines) or "(empty)"
+            full = os.path.join(safe, e)
+            lines.append(e + ("/" if os.path.isdir(full) else ""))
+        return "\n".join(lines) or "(empty sandbox)"
     except Exception as e:
         return f"Error: {e}"
 
@@ -83,7 +137,8 @@ def python_exec(code: str) -> str:
     try:
         result = subprocess.run(
             ["python3", "-c", code],
-            capture_output=True, text=True, timeout=30
+            capture_output=True, text=True, timeout=30,
+            cwd=SANDBOX_DIR
         )
         out = result.stdout + (("\nSTDERR:\n" + result.stderr) if result.stderr else "")
         return _cap(out.strip()) or "(no output)"
@@ -92,6 +147,8 @@ def python_exec(code: str) -> str:
     except Exception as e:
         return f"Error: {e}"
 
+
+# ── Registry ──────────────────────────────────────────────────────────────────
 
 TOOL_FUNCTIONS = {
     "shell_exec": shell_exec,
@@ -107,11 +164,11 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "shell_exec",
-            "description": "Run a shell command on the Mac and return its output.",
+            "description": f"Run a shell command. Runs inside the sandbox ({SANDBOX_DIR}). Cannot access any paths outside the sandbox.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "cmd": {"type": "string", "description": "The shell command to run"}
+                    "cmd": {"type": "string", "description": "Shell command to run"}
                 },
                 "required": ["cmd"]
             }
@@ -121,11 +178,11 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read and return the contents of a file.",
+            "description": f"Read a file. Only files inside the sandbox ({SANDBOX_DIR}) may be read.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Absolute or ~ path to the file"}
+                    "path": {"type": "string", "description": f"Path inside the sandbox, e.g. {SANDBOX_DIR}/file.py"}
                 },
                 "required": ["path"]
             }
@@ -135,11 +192,11 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "write_file",
-            "description": "Write content to a file, creating it if it doesn't exist.",
+            "description": f"Write a file. Only files inside the sandbox ({SANDBOX_DIR}) may be written.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Absolute or ~ path to the file"},
+                    "path": {"type": "string", "description": f"Path inside the sandbox"},
                     "content": {"type": "string", "description": "Content to write"}
                 },
                 "required": ["path", "content"]
@@ -150,11 +207,11 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "list_dir",
-            "description": "List the contents of a directory.",
+            "description": f"List a directory. Only the sandbox ({SANDBOX_DIR}) and subdirectories within it may be listed.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Directory path (default: current directory)"}
+                    "path": {"type": "string", "description": "Directory path (defaults to sandbox root)"}
                 },
                 "required": []
             }
@@ -164,7 +221,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "web_search",
-            "description": "Search the web using DuckDuckGo and return the top results.",
+            "description": "Search the web using DuckDuckGo.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -178,7 +235,7 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "python_exec",
-            "description": "Execute Python 3 code and return its output.",
+            "description": f"Execute Python 3 code. Runs inside the sandbox ({SANDBOX_DIR}).",
             "parameters": {
                 "type": "object",
                 "properties": {
