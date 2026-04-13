@@ -800,7 +800,7 @@ sendBtn.addEventListener('click', sendMessage);
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async () => {
-  await Promise.all([loadModels(), loadHistory()]);
+  await loadModels();
   inputEl.focus();
 })();
 </script>

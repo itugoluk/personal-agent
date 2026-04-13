@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse, HTMLResponse
 from pydantic import BaseModel
-import memory
 import agent
 from config import MODELS, DEFAULT_MODEL, ANTHROPIC_API_KEY, MINIMAX_API_KEY, GROQ_API_KEY
 
@@ -14,7 +13,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 state = {
     "model_key": DEFAULT_MODEL,
-    "messages": memory.load(),
+    "messages": [],
 }
 
 
@@ -79,15 +78,10 @@ async def get_models():
     }
 
 
-@app.get("/api/history")
-async def get_history():
-    return {"messages": _display_history(state["messages"])}
-
 
 @app.post("/api/new")
 async def new_chat():
     state["messages"] = []
-    memory.clear()
     return {"ok": True}
 
 
@@ -104,6 +98,7 @@ async def set_model(req: ModelRequest):
     if not has_key:
         return {"error": f"No API key for {cfg['label']}"}
     state["model_key"] = req.model_key
+    state["messages"] = []
     return {"ok": True}
 
 
@@ -131,7 +126,6 @@ async def chat(req: MessageRequest):
                 on_tool_result=on_tool_result,
             )
             state["messages"] = updated
-            memory.save(updated)
             event_queue.put(("done", None))
         except Exception as e:
             event_queue.put(("error", str(e)))
