@@ -1,7 +1,7 @@
 import json
 import httpx
 from typing import Generator, Union
-from config import ANTHROPIC_API_KEY, MINIMAX_API_KEY, MINIMAX_API_BASE, MODELS
+from config import ANTHROPIC_API_KEY, MINIMAX_API_KEY, GROQ_API_KEY, MINIMAX_API_BASE, MODELS
 from tools import TOOL_SCHEMAS, dispatch
 
 SYSTEM_PROMPT = """You are a personal AI agent running on a MacBook. You are a skilled assistant for coding, file management, and general task automation.
@@ -151,10 +151,21 @@ def _stream_anthropic(messages: list, model_id: str) -> Generator[Union[str, dic
 
 
 # ---------------------------------------------------------------------------
-# MiniMax streaming (OpenAI-compatible)
+# Generic OpenAI-compatible streaming (Groq, MiniMax, etc.)
 # ---------------------------------------------------------------------------
 
-def _stream_minimax(messages: list, model_id: str) -> Generator[Union[str, dict], None, None]:
+def _openai_api_key(provider: str) -> str:
+    return {"groq": GROQ_API_KEY, "minimax": MINIMAX_API_KEY}.get(provider, "")
+
+
+def _openai_base_url(provider: str) -> str:
+    return {
+        "groq": "https://api.groq.com/openai/v1/chat/completions",
+        "minimax": f"{MINIMAX_API_BASE}/text/chatcompletion_v2",
+    }[provider]
+
+
+def _stream_openai_compat(messages: list, model_id: str, provider: str) -> Generator[Union[str, dict], None, None]:
     payload = {
         "model": model_id,
         "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + messages,
@@ -162,13 +173,13 @@ def _stream_minimax(messages: list, model_id: str) -> Generator[Union[str, dict]
         "stream": True,
     }
     headers = {
-        "Authorization": f"Bearer {MINIMAX_API_KEY}",
+        "Authorization": f"Bearer {_openai_api_key(provider)}",
         "Content-Type": "application/json",
     }
     tool_calls_acc = {}
 
     with httpx.Client(timeout=120) as client:
-        with client.stream("POST", f"{MINIMAX_API_BASE}/text/chatcompletion_v2",
+        with client.stream("POST", _openai_base_url(provider),
                            headers=headers, json=payload) as response:
             response.raise_for_status()
             for line in response.iter_lines():
@@ -221,7 +232,7 @@ def stream_response(messages: list, model_key: str) -> Generator[Union[str, dict
     if cfg["provider"] == "anthropic":
         yield from _stream_anthropic(messages, cfg["model_id"])
     else:
-        yield from _stream_minimax(messages, cfg["model_id"])
+        yield from _stream_openai_compat(messages, cfg["model_id"], cfg["provider"])
 
 
 def run_turn(messages: list, model_key: str, on_text=None, on_tool_start=None, on_tool_result=None) -> list:

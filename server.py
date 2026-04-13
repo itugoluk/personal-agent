@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse, HTMLResponse
 from pydantic import BaseModel
 import memory
 import agent
-from config import MODELS, DEFAULT_MODEL, ANTHROPIC_API_KEY, MINIMAX_API_KEY
+from config import MODELS, DEFAULT_MODEL, ANTHROPIC_API_KEY, MINIMAX_API_KEY, GROQ_API_KEY
 
 app = FastAPI()
 executor = ThreadPoolExecutor(max_workers=4)
@@ -69,7 +69,9 @@ async def get_models():
             k: {
                 "label": v["label"],
                 "has_key": bool(
-                    ANTHROPIC_API_KEY if v["provider"] == "anthropic" else MINIMAX_API_KEY
+                    ANTHROPIC_API_KEY if v["provider"] == "anthropic"
+                    else GROQ_API_KEY if v["provider"] == "groq"
+                    else MINIMAX_API_KEY
                 ),
             }
             for k, v in MODELS.items()
@@ -95,7 +97,9 @@ async def set_model(req: ModelRequest):
         return {"error": "Unknown model"}
     cfg = MODELS[req.model_key]
     has_key = bool(
-        ANTHROPIC_API_KEY if cfg["provider"] == "anthropic" else MINIMAX_API_KEY
+        ANTHROPIC_API_KEY if cfg["provider"] == "anthropic"
+        else GROQ_API_KEY if cfg["provider"] == "groq"
+        else MINIMAX_API_KEY
     )
     if not has_key:
         return {"error": f"No API key for {cfg['label']}"}
