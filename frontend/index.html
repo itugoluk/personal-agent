@@ -459,8 +459,8 @@
           <line x1="2" y1="24" x2="11" y2="24" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
           <line x1="37" y1="24" x2="46" y2="24" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
         </svg>
-        <h2>Olympus</h2>
-        <p>Ask anything — I can code, search the web, and run commands on your Mac.</p>
+        <h2 id="greeting"></h2>
+        <p id="activeModel"></p>
       </div>
     </div>
     <div class="input-bar">
@@ -496,12 +496,25 @@ let renderScheduled = false;
 let currentToolCard = null;
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
-const messagesEl  = document.getElementById('messages');
-const emptyState  = document.getElementById('emptyState');
-const inputEl     = document.getElementById('input');
-const sendBtn     = document.getElementById('sendBtn');
-const newBtn      = document.getElementById('newBtn');
-const modelList   = document.getElementById('modelList');
+const messagesEl   = document.getElementById('messages');
+const emptyState   = document.getElementById('emptyState');
+const greetingEl   = document.getElementById('greeting');
+const activeModelEl = document.getElementById('activeModel');
+const inputEl      = document.getElementById('input');
+const sendBtn      = document.getElementById('sendBtn');
+const newBtn       = document.getElementById('newBtn');
+const modelList    = document.getElementById('modelList');
+
+// ── Greeting ──────────────────────────────────────────────────────────────────
+const GREETINGS = [
+  'Howdy.', 'Back to work.', "Let's get started.", 'Welcome.',
+  'Top of the morning.', 'Good to see you.', "What's on your mind?", 'Ready when you are.'
+];
+
+function setGreeting(modelLabel) {
+  greetingEl.textContent = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  activeModelEl.textContent = modelLabel;
+}
 
 // ── Utils ────────────────────────────────────────────────────────────────────
 function esc(str) {
@@ -531,18 +544,22 @@ async function loadModels() {
       (key === data.current ? ' active' : '') +
       (!cfg.has_key ? ' no-key' : '');
     item.dataset.key = key;
+    item.dataset.label = cfg.label;
     item.innerHTML = `<div class="model-dot"></div><span class="model-name">${esc(cfg.label)}</span>`;
-    item.addEventListener('click', () => switchModel(key));
+    item.addEventListener('click', () => switchModel(key, cfg.label));
     modelList.appendChild(item);
   }
+  const currentLabel = data.models[data.current]?.label || '';
+  setGreeting(currentLabel);
 }
 
-async function switchModel(key) {
+async function switchModel(key, label) {
   const res = await api('POST', '/api/model', { model_key: key });
   if (res.error) { alert(res.error); return; }
   document.querySelectorAll('.model-item').forEach(el => {
     el.classList.toggle('active', el.dataset.key === key);
   });
+  setGreeting(label);
   clearChat();
 }
 
