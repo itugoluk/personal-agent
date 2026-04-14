@@ -29,12 +29,18 @@ def _safe_path(path: str) -> str:
     return resolved
 
 
+_BLOCKED_COMMANDS = re.compile(r'\b(curl|wget|nc|ncat|netcat|python3?\s+-c|perl\s+-e|ruby\s+-e|bash\s+-c|sh\s+-c)\b')
+
 def _shell_cmd_safe(cmd: str) -> None:
     """
-    Reject shell commands that reference absolute paths outside the sandbox.
-    Only flags tokens that both look like paths AND exist on the filesystem,
-    avoiding false positives on format strings, sed patterns, etc.
+    Reject shell commands that reference absolute paths outside the sandbox,
+    or that use network/interpreter commands that could bypass sandbox restrictions.
     """
+    if _BLOCKED_COMMANDS.search(cmd):
+        raise PermissionError(
+            f"Access denied: shell command uses a blocked program (curl, wget, nc, inline interpreters). "
+            f"These are disabled to prevent data exfiltration."
+        )
     candidates = re.findall(r'(?:~\/|\/)[^\s\'\";|&><$(){}\\]*', cmd)
     for c in candidates:
         expanded = os.path.realpath(os.path.expanduser(c))
