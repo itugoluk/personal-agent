@@ -1,7 +1,7 @@
 httpx
 rich
 python-dotenv
-duckduckgo-search
+ddgs
 prompt_toolkit
 fastapi
 uvicorn

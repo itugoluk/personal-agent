@@ -4,7 +4,7 @@ import subprocess
 from config import MAX_OUTPUT_CHARS, SANDBOX_DIR
 
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
     _ddgs_available = True
 except ImportError:
     _ddgs_available = False
