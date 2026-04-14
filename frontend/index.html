@@ -288,6 +288,42 @@
     letter-spacing: 0.01em;
   }
 
+  /* ── Thinking indicator ──────────────────────────────────────────────── */
+  .thinking-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: var(--glass);
+    -webkit-backdrop-filter: var(--blur-sm);
+    backdrop-filter: var(--blur-sm);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+  }
+  .thinking-label {
+    font-size: 13px;
+    color: var(--text-dim);
+    transition: opacity 0.2s ease;
+    min-width: 76px;
+  }
+  .thinking-dots {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .thinking-dots span {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: dotBounce 1.2s ease-in-out infinite;
+  }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotBounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+    40%           { transform: scale(1);   opacity: 1; }
+  }
+
   /* ── Message rows ─────────────────────────────────────────────────────── */
   .msg-row {
     display: flex;
@@ -644,6 +680,43 @@ let currentAssistantEl = null;
 let currentBuffer = '';
 let renderScheduled = false;
 let currentToolCard = null;
+let thinkingInterval = null;
+let thinkingIndex = 0;
+
+const THINKING_LABELS = ['Thinking', 'Working', 'Jousting', 'Reasoning', 'Processing', 'On it'];
+
+function showThinking() {
+  hideThinking();
+  const row = document.createElement('div');
+  row.id = 'thinkingRow';
+  row.className = 'msg-row assistant';
+  row.innerHTML = `
+    <div class="assistant-wrap">
+      <div class="assistant-avatar">AI</div>
+      <div class="thinking-pill">
+        <span class="thinking-label">${THINKING_LABELS[0]}</span>
+        <span class="thinking-dots"><span></span><span></span><span></span></span>
+      </div>
+    </div>`;
+  messagesEl.appendChild(row);
+  scrollBottom();
+  thinkingIndex = 0;
+  const label = row.querySelector('.thinking-label');
+  thinkingInterval = setInterval(() => {
+    label.style.opacity = '0';
+    setTimeout(() => {
+      thinkingIndex = (thinkingIndex + 1) % THINKING_LABELS.length;
+      label.textContent = THINKING_LABELS[thinkingIndex];
+      label.style.opacity = '1';
+    }, 200);
+  }, 2000);
+}
+
+function hideThinking() {
+  const el = document.getElementById('thinkingRow');
+  if (el) el.remove();
+  if (thinkingInterval) { clearInterval(thinkingInterval); thinkingInterval = null; }
+}
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
 const messagesEl    = document.getElementById('messages');
@@ -741,6 +814,7 @@ function addAssistantMessage(content) {
 }
 
 function startAssistantStream() {
+  hideThinking();
   hideEmpty();
   const row = document.createElement('div');
   row.className = 'msg-row assistant';
@@ -840,18 +914,21 @@ function handleEvent(type, data) {
   if (type === 'text') {
     if (!currentAssistantEl) startAssistantStream();
     appendText(data);
-  } else if (type === 'tool_start') {
-    finalizeAssistant();
-    currentToolCard = addToolCard(data.name, data.args);
   } else if (type === 'tool_result') {
     if (currentToolCard) {
       setToolResult(currentToolCard, data.result);
       currentToolCard = null;
     }
+  } else if (type === 'tool_start') {
+    hideThinking();
+    finalizeAssistant();
+    currentToolCard = addToolCard(data.name, data.args);
   } else if (type === 'done') {
+    hideThinking();
     finalizeAssistant();
     setGenerating(false);
   } else if (type === 'error') {
+    hideThinking();
     finalizeAssistant();
     addError(data);
     setGenerating(false);
@@ -883,6 +960,7 @@ async function sendMessage() {
   inputEl.style.height = 'auto';
   addUserMessage(content);
   setGenerating(true);
+  showThinking();
   currentAssistantEl = null;
   currentBuffer = '';
   currentToolCard = null;
@@ -913,6 +991,7 @@ async function sendMessage() {
       }
     }
   } catch (err) {
+    hideThinking();
     addError(err.message);
     setGenerating(false);
   }
