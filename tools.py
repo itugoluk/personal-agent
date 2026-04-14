@@ -32,16 +32,19 @@ def _safe_path(path: str) -> str:
 def _shell_cmd_safe(cmd: str) -> None:
     """
     Reject shell commands that reference absolute paths outside the sandbox.
-    Catches explicit /path/to/file references — not a full sandbox but blocks
-    the obvious cases.
+    Only flags tokens that both look like paths AND exist on the filesystem,
+    avoiding false positives on format strings, sed patterns, etc.
     """
-    # Find all tokens that look like absolute paths or ~ paths
-    candidates = re.findall(r'(?:~|/)[^\s\'\";|&><$(){}]*', cmd)
+    candidates = re.findall(r'(?:~\/|\/)[^\s\'\";|&><$(){}\\]*', cmd)
     for c in candidates:
-        if '%' in c:  # skip format strings like /%m/%Y, %H:%M
-            continue
         expanded = os.path.realpath(os.path.expanduser(c))
-        if expanded != SANDBOX_DIR and not expanded.startswith(SANDBOX_DIR + os.sep):
+        # Only block if the path (or its parent) actually exists outside sandbox
+        check = expanded
+        if not os.path.exists(check):
+            check = os.path.dirname(expanded)
+        if not os.path.exists(check):
+            continue  # doesn't exist — not a real path, skip
+        if check != SANDBOX_DIR and not check.startswith(SANDBOX_DIR + os.sep):
             raise PermissionError(
                 f"Access denied: shell command references a path outside the sandbox ('{c}'). "
                 f"All operations are restricted to {SANDBOX_DIR}"
