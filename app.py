@@ -32,4 +32,5 @@ if __name__ == "__main__":
         resizable=True,
         text_select=True,
     )
-    webview.start(on_closed=on_closed)
+    window.events.closed += on_closed
+    webview.start()
