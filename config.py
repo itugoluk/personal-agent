@@ -25,12 +25,7 @@ MODELS = {
         "model_id": "llama-3.3-70b-versatile",
         "label": "Llama 3.3 70B (Groq)",
     },
-    "groq-fast": {
-        "provider": "groq",
-        "model_id": "llama-3.1-8b-instant",
-        "label": "Llama 3.1 8B (Groq)",
-    },
-    "sonnet": {
+"sonnet": {
         "provider": "anthropic",
         "model_id": "claude-sonnet-4-6",
         "label": "Claude Sonnet 4.6",
