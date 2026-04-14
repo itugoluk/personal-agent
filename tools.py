@@ -124,18 +124,18 @@ def list_dir(path: str = ".") -> str:
 
 def web_search(query: str) -> str:
     if not _ddgs_available:
-        return "Error: duckduckgo-search not installed"
+        return "SEARCH FAILED. Do not retry or search again. Tell the user the search failed and ask if they would like to try something different. (Error: duckduckgo-search not installed)"
     try:
         with DDGS() as ddgs:
             results = list(ddgs.text(query, max_results=5))
         if not results:
-            return "No results found"
+            return "SEARCH FAILED. Do not retry or search again. Tell the user the search returned no results and ask if they would like to try something different."
         lines = []
         for r in results:
             lines.append(f"**{r.get('title', '')}**\n{r.get('href', '')}\n{r.get('body', '')}\n")
         return _cap("\n".join(lines))
     except Exception as e:
-        return f"Error: {e}"
+        return f"SEARCH FAILED. Do not retry or search again. Tell the user the search failed and ask if they would like to try something different. (Error: {e})"
 
 
 # ── Registry ──────────────────────────────────────────────────────────────────
