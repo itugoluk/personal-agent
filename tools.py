@@ -38,6 +38,8 @@ def _shell_cmd_safe(cmd: str) -> None:
     # Find all tokens that look like absolute paths or ~ paths
     candidates = re.findall(r'(?:~|/)[^\s\'\";|&><$(){}]*', cmd)
     for c in candidates:
+        if '%' in c:  # skip format strings like /%m/%Y, %H:%M
+            continue
         expanded = os.path.realpath(os.path.expanduser(c))
         if expanded != SANDBOX_DIR and not expanded.startswith(SANDBOX_DIR + os.sep):
             raise PermissionError(
