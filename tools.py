@@ -59,15 +59,18 @@ def _cap(text: str) -> str:
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
 
+_SENSITIVE_ENV_KEYS = {"ANTHROPIC_API_KEY", "GROQ_API_KEY", "MINIMAX_API_KEY", "OPENAI_API_KEY"}
+
 def shell_exec(cmd: str) -> str:
     try:
         _shell_cmd_safe(cmd)
     except PermissionError as e:
         return f"SANDBOX ERROR: {e}"
     try:
+        env = {k: v for k, v in os.environ.items() if k not in _SENSITIVE_ENV_KEYS}
         result = subprocess.run(
             cmd, shell=True, capture_output=True, text=True, timeout=30,
-            cwd=SANDBOX_DIR
+            cwd=SANDBOX_DIR, env=env
         )
         out = result.stdout + (("\nSTDERR:\n" + result.stderr) if result.stderr else "")
         return _cap(out.strip()) or "(no output)"
