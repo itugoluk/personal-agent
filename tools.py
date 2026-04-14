@@ -133,10 +133,6 @@ def web_search(query: str) -> str:
         return f"Error: {e}"
 
 
-def python_exec(code: str) -> str:
-    return "python_exec is disabled. Write the code to a .py file in the sandbox and run it with shell_exec instead."
-
-
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 TOOL_FUNCTIONS = {
@@ -145,7 +141,6 @@ TOOL_FUNCTIONS = {
     "write_file": write_file,
     "list_dir": list_dir,
     "web_search": web_search,
-    "python_exec": python_exec,
 }
 
 TOOL_SCHEMAS = [
@@ -217,20 +212,6 @@ TOOL_SCHEMAS = [
                     "query": {"type": "string", "description": "Search query"}
                 },
                 "required": ["query"]
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "python_exec",
-            "description": "DISABLED. Do not use. To run Python code, write it to a .py file in the sandbox using write_file, then run it with shell_exec.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "code": {"type": "string", "description": "Python code to execute"}
-                },
-                "required": ["code"]
             }
         }
     },
